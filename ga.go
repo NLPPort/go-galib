@@ -25,6 +25,7 @@ type GAParameter struct {
 	Selector    GASelector
 	Mutator     GAMutator
 	Breeder     GABreeder
+	Neural      GANeural
 }
 
 type GA struct {
@@ -56,9 +57,12 @@ func (ga *GA) Init(popsize int, i GAGenome) {
 func (ga *GA) Optimize(gen int) {
 	for i := 0; i < gen; i++ {
 		l := len(ga.pop) // Do not try to breed/mutate new in this gen
+		if ga.Parameter.Neural != nil {
+			ga.Parameter.Neural.Train(ga.pop)
+		}
 		for p := 0; p < l; p++ {
 			//Breed two inviduals selected with selector.
-			if ga.Parameter.PBreed > rand.Float64() {
+			if ga.Parameter.Breeder != nil && ga.Parameter.PBreed > rand.Float64() {
 				children := make(GAGenomes, 2)
 				children[0], children[1] = ga.Parameter.Breeder.Breed(
 					ga.Parameter.Selector.SelectOne(ga.pop),
@@ -67,10 +71,16 @@ func (ga *GA) Optimize(gen int) {
 				ga.pop = AppendGenomes(ga.pop, children)
 			}
 			//Mutate
-			if ga.Parameter.PMutate > rand.Float64() {
+			if ga.Parameter.Mutator != nil && ga.Parameter.PMutate > rand.Float64() {
 				children := make(GAGenomes, 1)
 				children[0] = ga.Parameter.Mutator.Mutate(ga.pop[p])
 				ga.pop = AppendGenomes(ga.pop, children)
+			}
+			//Neural
+			if ga.Parameter.Neural != nil && ga.Parameter.PMutate > rand.Float64() {
+				morphed := make(GAGenomes, 1)
+				morphed[0] = ga.Parameter.Neural.Morph(ga.Parameter.Selector.SelectOne(ga.pop))
+				ga.pop = AppendGenomes(ga.pop, morphed)
 			}
 		}
 		//cleanup remove some from pop

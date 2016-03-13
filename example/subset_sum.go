@@ -9,7 +9,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/thoj/go-galib"
+	"github.com/pointlander/go-galib"
 	"math/rand"
 	"time"
 )
@@ -45,20 +45,22 @@ func main() {
 	param := ga.GAParameter{
 		Initializer: new(ga.GARandomInitializer),
 		Selector:    ga.NewGATournamentSelector(0.7, 5),
-		Breeder:     new(ga.GA2PointBreeder),
-		Mutator:     m,
-		PMutate:     0.2,
-		PBreed:      0.2}
+		//Breeder:     new(ga.GA2PointBreeder),
+		//Mutator:     m,
+		Neural:  new(ga.GAFeedForwardNeural),
+		PMutate: 0.2,
+		PBreed:  0.2}
 
 	gao := ga.NewGA(param)
 
 	genome := ga.NewFixedBitstringGenome(make([]bool, len(theset)), score)
 
-	gao.Init(50, genome) //Total population
+	gao.Init(256, genome) //Total population
 
 	for {
 		gao.Optimize(1) // Run genetic algorithm for 20 generations.
 		best := gao.Best().(*ga.GAFixedBitstringGenome)
+		fmt.Printf("best=%v\n", best.Score())
 		sum := 0
 		if best.Score() == 0 {
 			for n, value := range best.Gene {
