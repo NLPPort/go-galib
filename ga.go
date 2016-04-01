@@ -77,10 +77,13 @@ func (ga *GA) Optimize(gen int) {
 				ga.pop = AppendGenomes(ga.pop, children)
 			}
 			//Neural
-			if ga.Parameter.Neural != nil && ga.Parameter.PMutate > rand.Float64() {
-				morphed := make(GAGenomes, 1)
-				morphed[0] = ga.Parameter.Neural.Morph(ga.pop[p])
-				ga.pop = AppendGenomes(ga.pop, morphed)
+			//if ga.Parameter.Neural != nil && ga.Parameter.PMutate > rand.Float64() {
+			if ga.Parameter.Neural != nil {
+				for i := 0; i < 2; i++ {
+					morphed := make(GAGenomes, 1)
+					morphed[0] = ga.Parameter.Neural.Morph(ga.pop[p])
+					ga.pop = AppendGenomes(ga.pop, morphed)
+				}
 			}
 		}
 		//cleanup remove some from pop

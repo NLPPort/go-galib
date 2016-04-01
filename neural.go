@@ -40,7 +40,7 @@ func (n *GAFeedForwardNeural) Train(genomes GAGenomes, selector GASelector) {
 			if n.ff[i] == nil {
 				n.ff[i] = &gobrain.FeedForward32{}
 				n.ff[i].Init(width, width/2, width)
-				//n.ff[i].Dropout = true
+				n.ff[i].Dropout = true
 			}
 			n.ff[i].Train(patterns, 1, 0.6, 0.4, false)
 
@@ -66,7 +66,9 @@ func (n *GAFeedForwardNeural) Morph(genome GAGenome) GAGenome {
 		morph[i] = float32(source.Gene[i])
 	}
 	noise := make([]float32, width+width/2+width)
-	noise[rand.Intn(len(noise))] = float32(rand.NormFloat64())
+	for i := 0; i < 16; i++ {
+		noise[rand.Intn(len(noise))] = float32(rand.NormFloat64())
+	}
 	_noise := [][]float32{noise[:width], noise[width : width+width/2], noise[width+width/2:]}
 	morphed := n.ff[rand.Intn(len(n.ff))].UpdateWithNoise(morph, _noise)
 
