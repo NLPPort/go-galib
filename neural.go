@@ -40,7 +40,7 @@ func (n *GAFeedForwardNeural) Train(genomes GAGenomes, selector GASelector) {
 			if n.ff[i] == nil {
 				n.ff[i] = &gobrain.FeedForward32{}
 				n.ff[i].Init(width, width/2, width)
-				n.ff[i].Dropout = true
+				n.ff[i].Dropout = .5
 			}
 			n.ff[i].Train(patterns, 1, 0.6, 0.4, false)
 
