@@ -14,9 +14,10 @@ type GANeural interface {
 
 type GAFeedForwardNeural struct {
 	ff         [4]*gobrain.FeedForward32
-	Dropout    bool
+	Dropout    float32
 	Regression bool
 	Mutations  int
+	StdDev     float64
 }
 
 const (
@@ -73,7 +74,7 @@ func (n *GAFeedForwardNeural) Morph(genome GAGenome) GAGenome {
 	}
 	noise := make([]float32, width+width/2+width)
 	for i := 0; i < n.Mutations; i++ {
-		noise[rand.Intn(len(noise))] = float32(.4 * rand.NormFloat64())
+		noise[rand.Intn(len(noise))] = float32(n.StdDev * rand.NormFloat64())
 	}
 	_noise := [][]float32{noise[:width], noise[width : width+width/2], noise[width+width/2:]}
 	morphed := n.ff[rand.Intn(len(n.ff))].UpdateWithNoise(morph, _noise)
