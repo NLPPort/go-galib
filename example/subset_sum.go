@@ -52,9 +52,8 @@ func optimize(neural bool) (int, int) {
 		PBreed:      0.2}
 	if neural {
 		param.Neural = &ga.GAFeedForwardNeural{
-			Dropout:   .5,
-			Mutations: 16,
-			StdDev:    1,
+			Dropout: .5,
+			Noise:   .05,
 		}
 		param.PMutate = 1
 	} else {

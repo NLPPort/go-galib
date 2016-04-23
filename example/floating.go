@@ -59,8 +59,7 @@ func optimize(neural bool) (int, int) {
 	if neural {
 		param.Neural = &ga.GAFeedForwardNeural{
 			Regression: true,
-			Mutations:  4,
-			StdDev:     .4,
+			Noise:      .001,
 		}
 	} else {
 		param.Breeder = new(ga.GA2PointBreeder)

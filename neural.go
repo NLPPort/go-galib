@@ -13,11 +13,11 @@ type GANeural interface {
 }
 
 type GAFeedForwardNeural struct {
-	ff         [4]*gobrain.FeedForward32
+	ff         [8]*gobrain.FeedForward32
+	mse        [8]float32
 	Dropout    float32
 	Regression bool
-	Mutations  int
-	StdDev     float64
+	Noise      float32
 }
 
 const (
@@ -47,17 +47,9 @@ func (n *GAFeedForwardNeural) Train(genomes GAGenomes, selector GASelector) {
 				n.ff[i].Dropout = n.Dropout
 				n.ff[i].Regression = n.Regression
 			}
-			n.ff[i].Train(patterns, 1, 0.6, 0.4, false)
+			mse := n.ff[i].Train(patterns, 1, 0.6, 0.4, false)
+			n.mse[i] = mse[0]
 
-			if !n.Regression {
-				for t := 0; t < 3; t++ {
-					for _, pattern := range patterns {
-						i := rand.Intn(width)
-						pattern[0][i] = 1 - pattern[0][i]
-					}
-					n.ff[i].Train(patterns, 1, 0.6, 0.4, false)
-				}
-			}
 			done <- true
 		}(done[f], f, selected)
 	}
@@ -73,11 +65,14 @@ func (n *GAFeedForwardNeural) Morph(genome GAGenome) GAGenome {
 		morph[i] = float32(source.Gene[i])
 	}
 	noise := make([]float32, width+width/2+width)
-	for i := 0; i < n.Mutations; i++ {
-		noise[rand.Intn(len(noise))] = float32(n.StdDev * rand.NormFloat64())
-	}
 	_noise := [][]float32{noise[:width], noise[width : width+width/2], noise[width+width/2:]}
-	morphed := n.ff[rand.Intn(len(n.ff))].UpdateWithNoise(morph, _noise)
+	ff := rand.Intn(len(n.ff))
+	for i := range _noise[0] {
+		n := n.Noise * float32(rand.NormFloat64()) / n.mse[ff]
+		_noise[0][i] = n
+		_noise[2][i] = n
+	}
+	morphed := n.ff[ff].UpdateWithNoise(morph, _noise)
 
 	cp := source.Copy().(*GAFloatGenome)
 	for i := range cp.Gene {
