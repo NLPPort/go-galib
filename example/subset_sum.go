@@ -45,17 +45,14 @@ func optimize(neural bool) (int, int) {
 	m.Add(msh)
 	m.Add(msw)
 
+	width := len(theset)
 	param := ga.GAParameter{
 		Initializer: new(ga.GARandomInitializer),
 		Selector:    ga.NewGATournamentSelector(0.7, 5),
 		PMutate:     0.2,
 		PBreed:      0.2}
 	if neural {
-		param.Neural = &ga.GAFeedForwardNeural{
-			Dropout: .5,
-			Noise:   .05,
-		}
-		param.PMutate = 1
+		param.Neural = ga.NewGAFeedForwardNeural(.05, 8, width, .5, false)
 	} else {
 		param.Breeder = new(ga.GA2PointBreeder)
 		param.Mutator = m
@@ -63,7 +60,7 @@ func optimize(neural bool) (int, int) {
 
 	gao := ga.NewGA(param)
 
-	genome := ga.NewFloatGenome(make([]float64, len(theset)), score, 1, 0)
+	genome := ga.NewFloatGenome(make([]float64, width), score, 1, 0)
 
 	gao.Init(128, genome) //Total population
 
@@ -96,26 +93,6 @@ const (
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 
-type Sketch struct {
-	sum, squared float64
-	n            uint64
-}
-
-func (s *Sketch) Add(x float64) {
-	s.sum += x
-	s.squared += x * x
-	s.n++
-}
-
-func (s *Sketch) Average() float64 {
-	return s.sum / float64(s.n)
-}
-
-func (s *Sketch) Variance() float64 {
-	average := s.Average()
-	return s.squared/float64(s.n) - average*average
-}
-
 func main() {
 	flag.Parse()
 	if *cpuprofile != "" {
@@ -128,13 +105,13 @@ func main() {
 	}
 
 	rand.Seed(time.Now().UTC().UnixNano())
-	generations, scores := Sketch{}, Sketch{}
+	generations, scores := ga.Sketch{}, ga.Sketch{}
 	for i := 0; i < SAMPLES; i++ {
 		g, s := optimize(false)
 		generations.Add(float64(g))
 		scores.Add(float64(s))
 	}
-	ngenerations, nscores := Sketch{}, Sketch{}
+	ngenerations, nscores := ga.Sketch{}, ga.Sketch{}
 	for i := 0; i < SAMPLES; i++ {
 		g, s := optimize(true)
 		ngenerations.Add(float64(g))

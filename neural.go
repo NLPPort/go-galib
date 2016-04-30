@@ -12,21 +12,33 @@ type GANeural interface {
 	String() string
 }
 
+type GAExpert struct {
+	gobrain.FeedForward32
+	mse float32
+}
+
 type GAFeedForwardNeural struct {
-	ff         [8]*gobrain.FeedForward32
-	mse        [8]float32
-	Dropout    float32
-	Regression bool
-	Noise      float32
+	Experts []GAExpert
+	Noise   float32
 }
 
 const (
 	SELECT = 5
 )
 
+func NewGAFeedForwardNeural(noise float32, experts, width int, dropout float32, regression bool) *GAFeedForwardNeural {
+	_experts := make([]GAExpert, experts)
+	for e := range _experts {
+		_experts[e].Init(width, width/2, width)
+		_experts[e].Dropout = dropout
+		_experts[e].Regression = regression
+	}
+	return &GAFeedForwardNeural{Experts: _experts, Noise: noise}
+}
+
 func (n *GAFeedForwardNeural) Train(genomes GAGenomes, selector GASelector) {
-	done, width := make([]chan bool, len(n.ff)), genomes[0].Len()
-	for f := range n.ff {
+	done, width := make([]chan bool, len(n.Experts)), genomes[0].Len()
+	for f := range n.Experts {
 		done[f] = make(chan bool, 1)
 		selected := make(GAGenomes, SELECT)
 		for i := range selected {
@@ -41,14 +53,8 @@ func (n *GAFeedForwardNeural) Train(genomes GAGenomes, selector GASelector) {
 				}
 				patterns[i] = [][]float32{pattern, pattern}
 			}
-			if n.ff[i] == nil {
-				n.ff[i] = &gobrain.FeedForward32{}
-				n.ff[i].Init(width, width/2, width)
-				n.ff[i].Dropout = n.Dropout
-				n.ff[i].Regression = n.Regression
-			}
-			mse := n.ff[i].Train(patterns, 1, 0.6, 0.4, false)
-			n.mse[i] = mse[0]
+			mse := n.Experts[i].Train(patterns, 1, 0.6, 0.4, false)
+			n.Experts[i].mse = mse[0]
 
 			done <- true
 		}(done[f], f, selected)
@@ -66,13 +72,13 @@ func (n *GAFeedForwardNeural) Morph(genome GAGenome) GAGenome {
 	}
 	noise := make([]float32, width+width/2+width)
 	_noise := [][]float32{noise[:width], noise[width : width+width/2], noise[width+width/2:]}
-	ff := rand.Intn(len(n.ff))
+	ff := rand.Intn(len(n.Experts))
 	for i := range _noise[0] {
-		n := n.Noise * float32(rand.NormFloat64()) / n.mse[ff]
+		n := n.Noise * float32(rand.NormFloat64()) / n.Experts[ff].mse
 		_noise[0][i] = n
 		_noise[2][i] = n
 	}
-	morphed := n.ff[ff].UpdateWithNoise(morph, _noise)
+	morphed := n.Experts[ff].UpdateWithNoise(morph, _noise)
 
 	cp := source.Copy().(*GAFloatGenome)
 	for i := range cp.Gene {

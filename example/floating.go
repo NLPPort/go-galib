@@ -20,21 +20,35 @@ import (
 	"github.com/pointlander/go-galib"
 )
 
+type Experiment struct {
+	name         string
+	set          string
+	configurator func() *ga.GA
+	generations  ga.Sketch
+	scores       ga.Sketch
+}
+
 var scores int
 
 func ackley(g *ga.GAFloatGenome) float64 {
 	scores++
-	var sum1 float64 = 0.0
+	var sum1 float64
+	d := float64(len(g.Gene))
 	for _, c := range g.Gene {
 		sum1 += float64(c * c)
 	}
-	t1 := math.Exp(-0.2 * (math.Sqrt((1.0 / 5.0) * sum1)))
+	t1 := math.Exp(-0.2 * (math.Sqrt((1.0 / d) * sum1)))
 	sum1 = 0.0
 	for _, c := range g.Gene {
 		sum1 += math.Cos(float64(2.0 * math.Pi * c))
 	}
-	t2 := math.Exp((1.0 / 5.0) * sum1)
-	return (20 + math.Exp(1) - 20*t1 - t2)
+	t2 := math.Exp((1.0 / d) * sum1)
+	x := (20 + math.Exp(1) - 20*t1 - t2)
+
+	if math.IsNaN(x) {
+		x = math.MaxFloat64
+	}
+	return x
 }
 
 func rosenbrock(g *ga.GAFloatGenome) float64 {
@@ -50,67 +64,117 @@ func rosenbrock(g *ga.GAFloatGenome) float64 {
 	return sum
 }
 
-func optimize(neural bool) (int, int) {
+func rosenbrockNormal() *ga.GA {
+	width := 2
 	param := ga.GAParameter{
 		Initializer: new(ga.GARandomInitializer),
 		Selector:    ga.NewGATournamentSelector(0.2, 5),
 		PMutate:     0.5,
-		PBreed:      0.2}
-	if neural {
-		param.Neural = &ga.GAFeedForwardNeural{
-			Regression: true,
-			Noise:      .001,
-		}
-	} else {
-		param.Breeder = new(ga.GA2PointBreeder)
-		param.Mutator = ga.NewGAGaussianMutator(0.4, 0)
+		PBreed:      0.2,
+		Breeder:     new(ga.GA2PointBreeder),
+		Mutator:     ga.NewGAGaussianMutator(0.4, 0),
 	}
-
 	gao := ga.NewGA(param)
+	gao.Init(100, ga.NewFloatGenome(make([]float64, width), rosenbrock, 1, -1))
+	return gao
+}
 
-	genome := ga.NewFloatGenome(make([]float64, 2), rosenbrock, 1, -1)
+func rosenbrockNeural() *ga.GA {
+	width := 2
+	param := ga.GAParameter{
+		Initializer: new(ga.GARandomInitializer),
+		Selector:    ga.NewGATournamentSelector(0.2, 5),
+		PMutate:     0.5,
+		PBreed:      0.2,
+		Neural:      ga.NewGAFeedForwardNeural(.001, 8, width, 0, true),
+	}
+	gao := ga.NewGA(param)
+	gao.Init(100, ga.NewFloatGenome(make([]float64, width), rosenbrock, 1, -1))
+	return gao
+}
 
-	gao.Init(100, genome) //Total population
+func ackleyNormal() *ga.GA {
+	width := 4
+	param := ga.GAParameter{
+		Initializer: new(ga.GARandomInitializer),
+		Selector:    ga.NewGATournamentSelector(0.2, 5),
+		PMutate:     0.5,
+		PBreed:      0.2,
+		Breeder:     new(ga.GA2PointBreeder),
+		Mutator:     ga.NewGAGaussianMutator(0.4, 0),
+	}
+	gao := ga.NewGA(param)
+	gao.Init(100, ga.NewFloatGenome(make([]float64, width), ackley, 32, -32))
+	return gao
+}
 
-	generations := 0
-	scores = 0
-	gao.OptimizeUntil(func(best ga.GAGenome) bool {
-		//fmt.Printf("best = %v\n", best.Score())
-		generations++
-		return best.Score() < 1e-3
-	})
-	best := gao.Best().(*ga.GAFloatGenome)
-	fmt.Printf("%s = %f\n", best, best.Score())
-	fmt.Printf("Calls to score = %d\n", scores)
+func ackleyNeural() *ga.GA {
+	width := 4
+	param := ga.GAParameter{
+		Initializer: new(ga.GARandomInitializer),
+		Selector:    ga.NewGATournamentSelector(0.2, 5),
+		PMutate:     0.5,
+		PBreed:      0.2,
+		Neural:      ga.NewGAFeedForwardNeural(1E-9, 64, width, 0, true),
+	}
+	gao := ga.NewGA(param)
+	gao.Init(100, ga.NewFloatGenome(make([]float64, width), ackley, 32, -32))
+	return gao
+}
 
-	return generations, scores
+var Experiments = [...]Experiment{
+	{
+		name:         "Rosenbrock Normal",
+		set:          "rosenbrock",
+		configurator: rosenbrockNormal,
+	},
+	{
+		name:         "Rosenbrok Neural",
+		set:          "rosenbrock",
+		configurator: rosenbrockNeural,
+	},
+	{
+		name:         "Ackley Normal",
+		set:          "ackley",
+		configurator: ackleyNormal,
+	},
+	{
+		name:         "Ackley Neural",
+		set:          "ackley",
+		configurator: ackleyNeural,
+	},
 }
 
 const (
 	SAMPLES = 128
 )
 
+func (e *Experiment) Run() {
+	for i := 0; i < SAMPLES; i++ {
+		gao := e.configurator()
+
+		generations := 0
+		scores = 0
+		gao.OptimizeUntil(func(best ga.GAGenome) bool {
+			//fmt.Printf("best = %v\n", best.Score())
+			generations++
+			return best.Score() < 1e-3
+		})
+		best := gao.Best().(*ga.GAFloatGenome)
+		fmt.Printf("%s = %f\n", best, best.Score())
+		fmt.Printf("Calls to score = %d\n", scores)
+		e.generations.Add(float64(generations))
+		e.scores.Add(float64(scores))
+	}
+}
+
+func (e *Experiment) Results() {
+	fmt.Printf("%v generations = %v+-%v\n", e.name, e.generations.Average(), e.generations.Variance())
+	fmt.Printf("%v scores = %v+-%v\n", e.name, e.scores.Average(), e.scores.Variance())
+}
+
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
-
-type Sketch struct {
-	sum, squared float64
-	n            uint64
-}
-
-func (s *Sketch) Add(x float64) {
-	s.sum += x
-	s.squared += x * x
-	s.n++
-}
-
-func (s *Sketch) Average() float64 {
-	return s.sum / float64(s.n)
-}
-
-func (s *Sketch) Variance() float64 {
-	average := s.Average()
-	return s.squared/float64(s.n) - average*average
-}
+var set = flag.String("set", "all", "experiment set to run")
 
 func main() {
 	flag.Parse()
@@ -124,24 +188,16 @@ func main() {
 	}
 
 	rand.Seed(time.Now().UTC().UnixNano())
-	generations, scores := Sketch{}, Sketch{}
-	for i := 0; i < SAMPLES; i++ {
-		g, s := optimize(false)
-		generations.Add(float64(g))
-		scores.Add(float64(s))
+	experiments := []*Experiment{}
+	for e := range Experiments {
+		if *set == "all" || *set == Experiments[e].set {
+			experiments = append(experiments, &Experiments[e])
+		}
 	}
-	ngenerations, nscores := Sketch{}, Sketch{}
-	for i := 0; i < SAMPLES; i++ {
-		g, s := optimize(true)
-		ngenerations.Add(float64(g))
-		nscores.Add(float64(s))
+	for e := range experiments {
+		experiments[e].Run()
 	}
-	fmt.Printf("average generations = %v\n", generations.Average())
-	fmt.Printf("variance generations = %v\n", generations.Variance())
-	fmt.Printf("average scores = %v\n", scores.Average())
-	fmt.Printf("variance scores = %v\n", scores.Variance())
-	fmt.Printf("average neural generations = %v\n", ngenerations.Average())
-	fmt.Printf("variance neural generations = %v\n", ngenerations.Variance())
-	fmt.Printf("average neural scores = %v\n", nscores.Average())
-	fmt.Printf("variance neural scores = %v\n", nscores.Variance())
+	for e := range experiments {
+		experiments[e].Results()
+	}
 }
