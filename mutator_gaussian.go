@@ -25,10 +25,22 @@ func NewGAGaussianMutator(stddev float64, mean float64) *GAGaussianMutator {
 }
 
 func (m GAGaussianMutator) Mutate(a GAGenome) GAGenome {
-	n := a.Copy().(*GAFloatGenome)
-	l := a.Len()
-	s := rand.Intn(l)
-	n.Gene[s] += rand.NormFloat64()*m.StdDev + m.Mean
-	return n
+	switch a := a.(type) {
+	case *GAFloatGenome:
+		n := a.Copy().(*GAFloatGenome)
+		l := a.Len()
+		s := rand.Intn(l)
+		n.Gene[s] += rand.NormFloat64()*m.StdDev + m.Mean
+		return n
+	case *GAFloat32Genome:
+		n := a.Copy().(*GAFloat32Genome)
+		l := a.Len()
+		s := rand.Intn(l)
+		n.Gene[s] += float32(rand.NormFloat64()*m.StdDev + m.Mean)
+		return n
+	}
+
+	return nil
 }
+
 func (m GAGaussianMutator) String() string { return "GAGaussianMutator" }

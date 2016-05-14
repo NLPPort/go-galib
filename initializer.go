@@ -27,3 +27,16 @@ func (i *GARandomInitializer) InitPop(first GAGenome, popsize int) (pop []GAGeno
 }
 
 func (i *GARandomInitializer) String() string { return "RandomInitializer" }
+
+type GAHRandomInitializer struct{}
+
+func (i *GAHRandomInitializer) InitPop(first GAGenome, popsize int) (pop []GAGenome) {
+	pop = make([]GAGenome, popsize)
+	first.Randomize()
+	for x := 0; x < popsize; x++ {
+		pop[x] = first.Copy()
+	}
+	return pop
+}
+
+func (i *GAHRandomInitializer) String() string { return "RandomInitializer" }

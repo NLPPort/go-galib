@@ -24,7 +24,7 @@ var theset = [200]int{332, 401, -178, 60, -436, -135, -275, 192, -223, -150, -67
 var scores int
 
 // Fitness function for subset sum
-func score(g *ga.GAFloatGenome) float64 {
+func score(g *ga.GAFloat32Genome) float32 {
 	scores++
 	total := 0
 	for i, c := range g.Gene {
@@ -33,9 +33,9 @@ func score(g *ga.GAFloatGenome) float64 {
 		}
 	}
 	if total < 0 {
-		return float64(-total)
+		return float32(-total)
 	}
-	return float64(total)
+	return float32(total)
 }
 
 func optimize(neural bool) (int, int) {
@@ -60,7 +60,7 @@ func optimize(neural bool) (int, int) {
 
 	gao := ga.NewGA(param)
 
-	genome := ga.NewFloatGenome(make([]float64, width), score, 1, 0)
+	genome := ga.NewFloat32Genome(make([]float32, width), score, 1, 0)
 
 	gao.Init(128, genome) //Total population
 
@@ -69,7 +69,7 @@ func optimize(neural bool) (int, int) {
 	for {
 		gao.Optimize(1) // Run genetic algorithm for 20 generations.
 		generations++
-		best := gao.Best().(*ga.GAFloatGenome)
+		best := gao.Best().(*ga.GAFloat32Genome)
 		//fmt.Printf("best=%v\n", best.Score())
 		sum := 0
 		if best.Score() == 0 {

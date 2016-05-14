@@ -38,6 +38,28 @@ func (breeder *GA2PointBreeder) Breed(a, b GAGenome) (ca, cb GAGenome) {
 
 func (b *GA2PointBreeder) String() string { return "GA2PointBreeder" }
 
+type GAUniformBreeder struct{}
+
+func (u *GAUniformBreeder) Breed(a, b GAGenome) (ca, cb GAGenome) {
+	if a.Len() != b.Len() {
+		panic("Length mismatch in pmx")
+	}
+	ca, cb = a.Copy(), b.Copy()
+	length := a.Len()
+	for i := 0; i < length; i++ {
+		if rand.Intn(2) == 0 {
+			ca.Splice(a, i, i, 1)
+			cb.Splice(b, i, i, 1)
+		} else {
+			ca.Splice(b, i, i, 1)
+			cb.Splice(a, i, i, 1)
+		}
+	}
+	return
+}
+
+func (u *GAUniformBreeder) String() string { return "GAUniformBreeder" }
+
 //Totally useless breeader. Copies input and shuffles it.
 type GARandomBreeder struct{}
 

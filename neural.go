@@ -14,7 +14,8 @@ type GANeural interface {
 
 type GAExpert struct {
 	gobrain.FeedForward32
-	mse float32
+	mse      float32
+	selected [SELECT]GAGenome
 }
 
 type GAFeedForwardNeural struct {
@@ -40,16 +41,15 @@ func (n *GAFeedForwardNeural) Train(genomes GAGenomes, selector GASelector) {
 	done, width := make([]chan bool, len(n.Experts)), genomes[0].Len()
 	for f := range n.Experts {
 		done[f] = make(chan bool, 1)
-		selected := make(GAGenomes, SELECT)
-		for i := range selected {
-			selected[i] = selector.SelectOne(genomes)
+		for i := range n.Experts[f].selected {
+			n.Experts[f].selected[i] = selector.SelectOne(genomes)
 		}
-		go func(done chan bool, i int, selected GAGenomes) {
+		go func(done chan bool, i int) {
 			patterns := make([][][]float32, SELECT)
-			for i, g := range selected {
-				pattern, source := make([]float32, width), g.(*GAFloatGenome)
+			for i, g := range n.Experts[i].selected {
+				pattern, source := make([]float32, width), g.(*GAFloat32Genome)
 				for j := range pattern {
-					pattern[j] = float32(source.Gene[j])
+					pattern[j] = source.Gene[j]
 				}
 				patterns[i] = [][]float32{pattern, pattern}
 			}
@@ -57,7 +57,7 @@ func (n *GAFeedForwardNeural) Train(genomes GAGenomes, selector GASelector) {
 			n.Experts[i].mse = mse[0]
 
 			done <- true
-		}(done[f], f, selected)
+		}(done[f], f)
 	}
 	for i := range done {
 		<-done[i]
@@ -66,9 +66,9 @@ func (n *GAFeedForwardNeural) Train(genomes GAGenomes, selector GASelector) {
 
 func (n *GAFeedForwardNeural) Morph(genome GAGenome) GAGenome {
 	width := genome.Len()
-	morph, source := make([]float32, width), genome.(*GAFloatGenome)
+	morph, source := make([]float32, width), genome.(*GAFloat32Genome)
 	for i := range morph {
-		morph[i] = float32(source.Gene[i])
+		morph[i] = source.Gene[i]
 	}
 	noise := make([]float32, width+width/2+width)
 	_noise := [][]float32{noise[:width], noise[width : width+width/2], noise[width+width/2:]}
@@ -80,9 +80,9 @@ func (n *GAFeedForwardNeural) Morph(genome GAGenome) GAGenome {
 	}
 	morphed := n.Experts[ff].UpdateWithNoise(morph, _noise)
 
-	cp := source.Copy().(*GAFloatGenome)
+	cp := source.Copy().(*GAFloat32Genome)
 	for i := range cp.Gene {
-		cp.Gene[i] = float64(morphed[i])
+		cp.Gene[i] = morphed[i]
 	}
 	cp.Reset()
 	return cp
