@@ -21,6 +21,7 @@ type GAExpert struct {
 type GAFeedForwardNeural struct {
 	Experts []GAExpert
 	Noise   float32
+	Single  bool
 }
 
 const (
@@ -81,8 +82,16 @@ func (n *GAFeedForwardNeural) Morph(genome GAGenome) GAGenome {
 	morphed := n.Experts[ff].UpdateWithNoise(morph, _noise)
 
 	cp := source.Copy().(*GAFloat32Genome)
-	for i := range cp.Gene {
-		cp.Gene[i] = morphed[i]
+	if n.Single {
+		mutations := int(rand.NormFloat64()) + 1
+		for m := 0; m < mutations; m++ {
+			i := rand.Intn(len(cp.Gene))
+			cp.Gene[i] = morphed[i]
+		}
+	} else {
+		for i := range cp.Gene {
+			cp.Gene[i] = morphed[i]
+		}
 	}
 	cp.Reset()
 	return cp

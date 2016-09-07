@@ -27,6 +27,7 @@ type Experiment struct {
 	configurator func() *ga.GA
 	generations  ga.Sketch
 	scores       ga.Sketch
+	stalls       int
 }
 
 var scores int
@@ -104,10 +105,12 @@ func neuralNetwork(g *ga.GAFloat32Genome) float32 {
 
 const (
 	RNNInputWidth  = 1
-	RNNMiddleWidth = 8
+	RNNMiddleWidth = 5
 	RNNOutputWidth = RNNInputWidth //+ 1
 	RNNStateWidth  = RNNInputWidth - 1
-	RNNWidth       = (RNNMiddleWidth+1)*(RNNInputWidth+1+RNNMiddleWidth) + RNNOutputWidth*(RNNMiddleWidth+1)
+	//RNNWidth       = (RNNMiddleWidth+1)*(RNNInputWidth+1+RNNMiddleWidth) + RNNOutputWidth*(RNNMiddleWidth+1)
+	RNNWidth = (RNNMiddleWidth + RNNOutputWidth) * (RNNInputWidth + RNNMiddleWidth + 1)
+	//RNNWidth = RNNInputWidth + RNNMiddleWidth + 1
 )
 
 var States = []float32{
@@ -116,10 +119,10 @@ var States = []float32{
 	1, 1, 1, 0,
 	0, 0, 1, 0,
 
-	0, 1, 0, 0,
+	/*0, 1, 0, 0,
 	0, 0, 1, 1,
 	0, 1, 0, 1,
-	0, 1, 0, 1,
+	0, 1, 0, 1,*/
 }
 
 func init() {
@@ -148,51 +151,6 @@ func rnn(g *ga.GAFloat32Genome) float32 {
 
 	if math.IsNaN(float64(e)) {
 		e = math.MaxFloat32
-	}
-	return e
-}
-
-type State struct {
-	state float32
-	set   bool
-}
-
-func rnnb(g *ga.GAFloatGenome) float64 {
-	scores++
-	ff := &gobrain.RNN32{}
-	ff.Init(RNNInputWidth, RNNMiddleWidth, RNNOutputWidth)
-	ff.Reset()
-	weights := make([]float32, len(g.Gene))
-	for w := range weights {
-		weights[w] = float32(g.Gene[w])
-	}
-	ff.SetWeights(weights)
-	var e float64
-	states := make([]State, len(States))
-	input := make([]float32, RNNInputWidth)
-	input[0] = States[0]
-	states[0].state = States[0]
-	states[0].set = true
-	i, length := 0, len(states)
-	for range States[1:] {
-		output := ff.Update(input)
-		offset := int(math.Floor(float64(output[1] * float32(length))))
-		i = (i + offset) % length
-		if i < 0 {
-			i += length
-		}
-		for states[i].set {
-			i = (i + 1) % length
-		}
-		states[i].state = output[0]
-		states[i].set = true
-		d := output[0] - States[i]
-		e += float64(d * d)
-		input[0] = output[0]
-	}
-
-	if math.IsNaN(e) {
-		e = math.MaxFloat64
 	}
 	return e
 }
@@ -282,29 +240,29 @@ func neuralNetworkNeural() *ga.GA {
 	return gao
 }
 
-func rnnNeural() *ga.GA {
-	param := ga.GAParameter{
-		Initializer: new(ga.GARandomInitializer),
-		Selector:    ga.NewGATournamentSelector(0.2, 5),
-		PMutate:     0.5,
-		PBreed:      0.2,
-		//Neural:      ga.NewGAFeedForwardNeural(.4, 8, RNNWidth, 0, true),
-		Breeder: new(ga.GA2PointBreeder),
-		Mutator: ga.NewGAGaussianMutator(.5, 0),
-	}
-	gao := ga.NewGA(param)
-	gao.Init(1000, ga.NewFloat32Genome(make([]float32, RNNWidth), rnn, 1, -1))
-	return gao
-}
-
-func rnnNeuralU() *ga.GA {
+func rnnNormal() *ga.GA {
 	param := ga.GAParameter{
 		Initializer: new(ga.GARandomInitializer),
 		Selector:    ga.NewGATournamentSelector(0.2, 5),
 		PMutate:     0.5,
 		PBreed:      0.2,
 		Breeder:     new(ga.GAUniformBreeder),
-		Mutator:     ga.NewGAGaussianMutator(.5, 0),
+		Mutator:     ga.NewGAGaussianMutator(.1, 0),
+	}
+	gao := ga.NewGA(param)
+	gao.Init(1000, ga.NewFloat32Genome(make([]float32, RNNWidth), rnn, 1, -1))
+	return gao
+}
+
+func rnnNeural() *ga.GA {
+	neural := ga.NewGAFeedForwardNeural(.1, 128, RNNWidth, 0, false)
+	neural.Single = true
+	param := ga.GAParameter{
+		Initializer: new(ga.GARandomInitializer),
+		Selector:    ga.NewGATournamentSelector(0.2, 5),
+		PMutate:     0.5,
+		PBreed:      0.2,
+		Neural:      neural,
 	}
 	gao := ga.NewGA(param)
 	gao.Init(1000, ga.NewFloat32Genome(make([]float32, RNNWidth), rnn, 1, -1))
@@ -343,40 +301,46 @@ var Experiments = [...]Experiment{
 		configurator: neuralNetworkNeural,
 	},
 	{
+		name:         "Recurrent Neural Network Normal",
+		set:          "rnn",
+		configurator: rnnNormal,
+	},
+	{
 		name:         "Recurrent Neural Network Neural",
 		set:          "rnn",
 		configurator: rnnNeural,
 	},
-	{
-		name:         "Recurrent Neural Network Neural Uniform",
-		set:          "rnnu",
-		configurator: rnnNeuralU,
-	},
 }
 
 const (
-	SAMPLES = 1
+	SAMPLES = 32
 )
 
 func (e *Experiment) Run() {
 	for i := 0; i < SAMPLES; i++ {
 		gao := e.configurator()
 
-		generations := 0
+		generations, stalled, last := 0, 0, 0.0
 		scores = 0
 		gao.OptimizeUntil(func(best ga.GAGenome) bool {
-			fmt.Printf("best = %v\n", best.Score())
+			score := best.Score()
+			fmt.Printf("best = %v\n", score)
 			generations++
+			if score == last {
+				stalled++
+				if stalled >= 100 {
+					return true
+				}
+			} else {
+				stalled, last = 0, score
+			}
+
 			if e.set == "rnn" || e.set == "rnnu" {
 				g := best.(*ga.GAFloat32Genome)
 				ff := &gobrain.RNN32{}
 				ff.Init(RNNInputWidth, RNNMiddleWidth, RNNOutputWidth)
 				ff.Reset()
-				weights := make([]float32, len(g.Gene))
-				for w := range weights {
-					weights[w] = float32(g.Gene[w])
-				}
-				ff.SetWeights(weights)
+				ff.SetWeights(g.Gene)
 				input := make([]float32, RNNInputWidth)
 				input[0] = States[0]
 				if input[0] > 0 {
@@ -405,19 +369,25 @@ func (e *Experiment) Run() {
 					return correct
 				}
 			}
-			return best.Score() < 1e-3
+
+			return score < 1e-3
 		})
 		best := gao.Best().(*ga.GAFloat32Genome)
 		fmt.Printf("%s = %f\n", best, best.Score())
 		fmt.Printf("Calls to score = %d\n", scores)
-		e.generations.Add(float64(generations))
-		e.scores.Add(float64(scores))
+		if stalled < 100 {
+			e.generations.Add(float64(generations))
+			e.scores.Add(float64(scores))
+		} else {
+			e.stalls++
+		}
 	}
 }
 
 func (e *Experiment) Results() {
 	fmt.Printf("%v generations = %v+-%v\n", e.name, e.generations.Average(), e.generations.Variance())
 	fmt.Printf("%v scores = %v+-%v\n", e.name, e.scores.Average(), e.scores.Variance())
+	fmt.Printf("%v stalls = %v\n", e.name, e.stalls)
 }
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
