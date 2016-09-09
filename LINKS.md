@@ -14,3 +14,5 @@ http://www.amazon.com/Quantum-Computation-Information-10th-Anniversary/dp/110700
 http://nn.cs.utexas.edu/downloads/papers/stanley.ec02.pdf
 
 https://github.com/jinseokYeom/eago
+
+https://github.com/fumin/ntm
