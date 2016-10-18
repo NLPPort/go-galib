@@ -6,6 +6,8 @@ import (
 	"github.com/pointlander/gobrain"
 )
 
+// See: http://www.nextbigfuture.com/2016/03/sander-olson-interviewed-dr-stephen.html
+
 type GANeural interface {
 	Train(genomes GAGenomes, selector GASelector)
 	Morph(genome GAGenome) GAGenome
