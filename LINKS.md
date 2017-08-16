@@ -18,3 +18,5 @@ https://github.com/jinseokYeom/eago
 https://github.com/fumin/ntm
 
 http://www.nextbigfuture.com/2016/03/sander-olson-interviewed-dr-stephen.html
+
+https://danluu.com/sattolo/  
