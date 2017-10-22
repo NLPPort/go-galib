@@ -8,6 +8,8 @@ go-galib genome
 
 package ga
 
+import "sort"
+
 // Genome interface, Not final.
 type GAGenome interface {
 	//Randomize.Genens
@@ -51,4 +53,35 @@ func AppendGenomes(slice, data GAGenomes) GAGenomes {
 		slice[l+i] = c
 	}
 	return slice
+}
+
+func merge(left, right, out GAGenomes) {
+	for len(left) > 0 && len(right) > 0 {
+		if left[0].Score() < right[0].Score() {
+			out[0], left = left[0], left[1:]
+		} else {
+			out[0], right = right[0], right[1:]
+		}
+		out = out[1:]
+	}
+	copy(out, left)
+	copy(out, right)
+}
+
+func psort(in GAGenomes, s chan<- bool) {
+	if len(in) < 3 {
+		sort.Sort(in)
+		s <- true
+		return
+	}
+
+	l, r, split := make(chan bool), make(chan bool), len(in)/2
+	left, right := in[:split], in[split:]
+	go psort(left, l)
+	go psort(right, r)
+	_, _ = <-l, <-r
+	out := make(GAGenomes, len(in))
+	merge(left, right, out)
+	copy(in, out)
+	s <- true
 }

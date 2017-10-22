@@ -33,6 +33,7 @@ type GA struct {
 	popsize int
 
 	Parameter GAParameter
+	Parallel  bool
 }
 
 func NewGA(parameter GAParameter) *GA {
@@ -88,7 +89,13 @@ func (ga *GA) Optimize(gen int) {
 		}
 		//cleanup remove some from pop
 		// this should probably use a type of selector
-		sort.Sort(ga.pop)
+		if ga.Parallel {
+			wait := make(chan bool)
+			go psort(ga.pop, wait)
+			<-wait
+		} else {
+			sort.Sort(ga.pop)
+		}
 		ga.pop = ga.pop[0:ga.popsize]
 	}
 }
