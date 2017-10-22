@@ -12,6 +12,7 @@ package ga
 import (
 	"fmt"
 	"math/rand"
+	"sync"
 )
 
 type GAFloat32Genome struct {
@@ -21,6 +22,7 @@ type GAFloat32Genome struct {
 	Min      float32
 	hasscore bool
 	sfunc    func(ga *GAFloat32Genome) float32
+	sync.RWMutex
 }
 
 func NewFloat32Genome(i []float32, sfunc func(ga *GAFloat32Genome) float32, max float32, min float32) *GAFloat32Genome {
@@ -83,11 +85,21 @@ func (g *GAFloat32Genome) Copy() GAGenome {
 func (g *GAFloat32Genome) Len() int { return len(g.Gene) }
 
 func (g *GAFloat32Genome) Score() float64 {
-	if !g.hasscore {
-		g.score = g.sfunc(g)
-		g.hasscore = true
+	g.RLock()
+	hasscore, score := g.hasscore, g.score
+	g.RUnlock()
+
+	if !hasscore {
+		g.Lock()
+		if !g.hasscore {
+			score = g.sfunc(g)
+			g.score = score
+			g.hasscore = true
+		}
+		g.Unlock()
 	}
-	return float64(g.score)
+
+	return float64(score)
 }
 
 func (g *GAFloat32Genome) Reset() { g.hasscore = false }
