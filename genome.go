@@ -69,16 +69,16 @@ func merge(left, right, out GAGenomes) {
 }
 
 func psort(in GAGenomes, s chan<- bool) {
-	if len(in) < 3 {
+	if len(in) <= 4 {
 		sort.Sort(in)
 		s <- true
 		return
 	}
 
-	l, r, split := make(chan bool), make(chan bool), len(in)/2
+	l, r, split := make(chan bool, 1), make(chan bool, 1), len(in)/2
 	left, right := in[:split], in[split:]
 	go psort(left, l)
-	go psort(right, r)
+	psort(right, r)
 	_, _ = <-l, <-r
 	out := make(GAGenomes, len(in))
 	merge(left, right, out)

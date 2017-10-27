@@ -57,7 +57,7 @@ func (ga *GA) Init(popsize int, i GAGenome) {
 
 func (ga *GA) Optimize(gen int) {
 	for i := 0; i < gen; i++ {
-		l := len(ga.pop) // Do not try to breed/mutate new in this gen
+		l, pop := len(ga.pop), ga.pop // Do not try to breed/mutate new in this gen
 		if ga.Parameter.Neural != nil {
 			ga.Parameter.Neural.Train(ga.pop, ga.Parameter.Selector)
 		}
@@ -66,15 +66,15 @@ func (ga *GA) Optimize(gen int) {
 			if ga.Parameter.Breeder != nil && ga.Parameter.PBreed > rand.Float64() {
 				children := make(GAGenomes, 2)
 				children[0], children[1] = ga.Parameter.Breeder.Breed(
-					ga.Parameter.Selector.SelectOne(ga.pop),
-					ga.Parameter.Selector.SelectOne(ga.pop))
+					ga.Parameter.Selector.SelectOne(pop),
+					ga.Parameter.Selector.SelectOne(pop))
 
 				ga.pop = AppendGenomes(ga.pop, children)
 			}
 			//Mutate
 			if ga.Parameter.Mutator != nil && ga.Parameter.PMutate > rand.Float64() {
 				children := make(GAGenomes, 1)
-				children[0] = ga.Parameter.Mutator.Mutate(ga.pop[p])
+				children[0] = ga.Parameter.Mutator.Mutate(pop[p])
 				ga.pop = AppendGenomes(ga.pop, children)
 			}
 			//Neural
@@ -82,7 +82,7 @@ func (ga *GA) Optimize(gen int) {
 			if ga.Parameter.Neural != nil {
 				for i := 0; i < 2; i++ {
 					morphed := make(GAGenomes, 1)
-					morphed[0] = ga.Parameter.Neural.Morph(ga.pop[p])
+					morphed[0] = ga.Parameter.Neural.Morph(pop[p])
 					ga.pop = AppendGenomes(ga.pop, morphed)
 				}
 			}
