@@ -20,3 +20,8 @@ https://github.com/fumin/ntm
 http://www.nextbigfuture.com/2016/03/sander-olson-interviewed-dr-stephen.html
 
 https://danluu.com/sattolo/  
+
+# gago becomes eaopt, an evolutionary optimization library
+https://www.reddit.com/r/golang/comments/949bw6/gago_becomes_eaopt_an_evolutionary_optimization/  
+https://github.com/MaxHalford/eaopt  
+
